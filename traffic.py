@@ -22,7 +22,7 @@ from sklearn.model_selection import train_test_split
 print(X_train_load.shape)
 print(y_train_load.shape)
 
-#X_train_load[:,:,:,:] = (X_train_load[:,:,:,:] - 128) / 128
+X_train_load[:,:,:,:] = (X_train_load[:,:,:,:] - 128) / 128
 
 
 
@@ -35,10 +35,6 @@ print("Number of validation set =", len(X_validation))
 print("Number of test set =", len(X_test))
 
 import tensorflow as tf
-
-EPOCHS = 25
-BATCH_SIZE = 128
-
 from tensorflow.contrib.layers import flatten
 
 
@@ -55,7 +51,7 @@ def variable_summaries(var,scope_name="summaries"):
     tf.summary.scalar('min', tf.reduce_min(var))
     tf.summary.histogram('histogram', var)
 
-def LeNet(x):
+def LeNet(x,keep_prob, fcp=(120,84)):
     # Arguments used for tf.truncated_normal, randomly defines variables for the weights and biases for each layer
     mu = 0
     sigma = 0.1
@@ -87,7 +83,6 @@ def LeNet(x):
         conv2_b = tf.Variable(tf.zeros(16))
         conv2 = tf.nn.conv2d(conv1, conv2_W, strides=[1, 1, 1, 1], padding='VALID') + conv2_b
 
-
     # SOLUTION: Activation.
     with tf.name_scope("RELU2"):
         conv2 = tf.nn.relu(conv2)
@@ -102,18 +97,21 @@ def LeNet(x):
 
     with tf.name_scope("FC1"):
         # SOLUTION: Layer 3: Fully Connected. Input = 400. Output = 120.
-        fc1_W = tf.Variable(tf.truncated_normal(shape=(400, 1200), mean=mu, stddev=sigma))
-        fc1_b = tf.Variable(tf.zeros(1200))
+        fc1_W = tf.Variable(tf.truncated_normal(shape=(400, fcp[0]), mean=mu, stddev=sigma))
+        fc1_b = tf.Variable(tf.zeros(fcp[0]))
         fc1 = tf.matmul(fc0, fc1_W) + fc1_b
 
     with tf.name_scope("RELU3"):
         # SOLUTION: Activation.
         fc1 = tf.nn.relu(fc1)
 
+    with tf.name_scope("DROP_OUT"):
+        fc1 = tf.nn.dropout(fc1, keep_prob=keep_prob)
+
     with tf.name_scope("FC2"):
         # SOLUTION: Layer 4: Fully Connected. Input = 120. Output = 84.
-        fc2_W = tf.Variable(tf.truncated_normal(shape=(1200, 430), mean=mu, stddev=sigma))
-        fc2_b = tf.Variable(tf.zeros(430))
+        fc2_W = tf.Variable(tf.truncated_normal(shape=(fcp[0], fcp[1]), mean=mu, stddev=sigma))
+        fc2_b = tf.Variable(tf.zeros(fcp[1]))
         fc2 = tf.matmul(fc1, fc2_W) + fc2_b
 
     with tf.name_scope("RELU4"):
@@ -122,7 +120,7 @@ def LeNet(x):
 
     with tf.name_scope("FC5"):
         # SOLUTION: Layer 5: Fully Connected. Input = 84. Output = 10.
-        fc3_W = tf.Variable(tf.truncated_normal(shape=(430, 43), mean=mu, stddev=sigma))
+        fc3_W = tf.Variable(tf.truncated_normal(shape=(fcp[1], 43), mean=mu, stddev=sigma))
         fc3_b = tf.Variable(tf.zeros(43))
         logits = tf.matmul(fc2, fc3_W) + fc3_b
 
@@ -131,11 +129,19 @@ def LeNet(x):
 x = tf.placeholder(tf.float32, (None, 32, 32, 3))
 y = tf.placeholder(tf.int32, (None))
 one_hot_y = tf.one_hot(y, 43)
+keep_prob = tf.placeholder(tf.float32, ())
 
+
+
+EPOCHS = 20
+BATCH_SIZE = 128
 rate = 0.001
-tf.summary.image("x", x)
+training_keep_prob = 1
+netpara = (120,84)
 
-logits = LeNet(x)
+tf.summary.image("x", x,max_outputs=3)
+
+logits = LeNet(x,keep_prob, netpara)
 cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits, one_hot_y)
 loss_operation = tf.reduce_mean(cross_entropy)
 optimizer = tf.train.AdamOptimizer(learning_rate = rate)
@@ -155,7 +161,7 @@ def evaluate(X_data, y_data):
     sess = tf.get_default_session()
     for offset in range(0, num_examples, BATCH_SIZE):
         batch_x, batch_y = X_data[offset:offset+BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
-        accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y})
+        accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y, keep_prob:training_keep_prob})
         total_accuracy += (accuracy * len(batch_x))
     return total_accuracy / num_examples
 
@@ -176,25 +182,20 @@ with tf.Session() as sess:
         for offset in range(0, num_examples, BATCH_SIZE):
             end = offset + BATCH_SIZE
             batch_x, batch_y = X_train[offset:end], y_train[offset:end]
-            sess.run(training_operation, feed_dict={x: batch_x, y: batch_y})
+            sess.run(training_operation, feed_dict={x: batch_x, y: batch_y, keep_prob:1})
 
-            if offset % (BATCH_SIZE*10) == 0.0:
-                summary, Traing_loss = sess.run([merged,loss_operation], feed_dict={x: batch_x, y: batch_y})
+            if 0: #offset % (BATCH_SIZE*100) == 0.0:
+                summary, Traing_loss = sess.run([merged,loss_operation], feed_dict={x: batch_x, y: batch_y, keep_prob:1})
                 print("batch = {:.3f}  Traing Loss = {:.3f}".format(offset, Traing_loss))
 
                 file_writer.add_summary(summary, i*num_examples+offset)
 
 
         Training_accuracy = evaluate(X_train, y_train)
-
         validation_accuracy = evaluate(X_validation, y_validation)
-        print("EPOCH {} ...".format(i + 1))
-        print("Training Accuracy= {:.3f}".format(Training_accuracy))
-        print("Validation Accuracy = {:.3f}".format(validation_accuracy))
+        print("EPOCH {} ... Training Accuracy= {:.3f}  Validation Accuracy = {:.3f}".format(i+1, Training_accuracy,validation_accuracy))
 
-        print()
-
-        file_writer.add_summary(summary,i)
+        #file_writer.add_summary(summary,i)
 
     saver.save(sess, './lenet')
     print("Model saved")
