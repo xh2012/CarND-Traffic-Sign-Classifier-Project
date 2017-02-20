@@ -1,3 +1,4 @@
+# %load traffic.py
 # Load pickled data
 import pickle
 
@@ -22,8 +23,27 @@ from sklearn.model_selection import train_test_split
 print(X_train_load.shape)
 print(y_train_load.shape)
 
-X_train_load[:,:,:,:] = (X_train_load[:,:,:,:] - 128) / 128
+#X_train_load[:,:,:,:] = (X_train_load[:,:,:,:] - 128) 
 
+
+import cv2
+import numpy as np
+
+def RGB2YUV(dataset):
+    s1,s2,s3,s4 = dataset.shape
+    for i in range(dataset.shape[0]):
+        dataset[i,:,:,:]=cv2.cvtColor(dataset[i,:,:,:],cv2.COLOR_RGB2YUV)
+    dataset = np.reshape(dataset[:,:,:,0],(s1,s2,s3,1))
+    return dataset
+
+def RGB2GRY(dataset):
+    s1,s2,s3,s4 = dataset.shape
+    for i in range(dataset.shape[0]):
+        dataset[i,:,:,0]=cv2.cvtColor(dataset[i,:,:,:],cv2.COLOR_RGB2GRAY)
+    dataset = np.reshape(dataset[:,:,:,0],(s1,s2,s3,1))
+    return dataset
+
+X_train_load = RGB2YUV(X_train_load)
 
 
 X_train, X_rest, y_train, y_rest = train_test_split(X_train_load, y_train_load, test_size=0.4)
@@ -51,7 +71,7 @@ def variable_summaries(var,scope_name="summaries"):
     tf.summary.scalar('min', tf.reduce_min(var))
     tf.summary.histogram('histogram', var)
 
-def LeNet(x,keep_prob, fcp=(120,84)):
+def LeNet(x,keep_prob, fcp=(120,120,84)):
     # Arguments used for tf.truncated_normal, randomly defines variables for the weights and biases for each layer
     mu = 0
     sigma = 0.1
@@ -60,7 +80,7 @@ def LeNet(x,keep_prob, fcp=(120,84)):
 
     variable_summaries(x,"x")
     with tf.name_scope("CONV1"):
-        conv1_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 3, 6), mean=mu, stddev=sigma))
+        conv1_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 1, 6), mean=mu, stddev=sigma))
         conv1_b = tf.Variable(tf.zeros(6))
         conv1 = tf.nn.conv2d(x, conv1_W, strides=[1, 1, 1, 1], padding='VALID') + conv1_b
 
@@ -117,31 +137,125 @@ def LeNet(x,keep_prob, fcp=(120,84)):
     with tf.name_scope("RELU4"):
         # SOLUTION: Activation.
         fc2 = tf.nn.relu(fc2)
+        
+        
+    with tf.name_scope("FC2"):
+        # SOLUTION: Layer 4: Fully Connected. Input = 120. Output = 84.
+        fc3_W = tf.Variable(tf.truncated_normal(shape=(fcp[1], fcp[2]), mean=mu, stddev=sigma))
+        fc3_b = tf.Variable(tf.zeros(fcp[2]))
+        fc3 = tf.matmul(fc2, fc3_W) + fc3_b
 
-    with tf.name_scope("FC5"):
+    with tf.name_scope("RELU5"):
+        # SOLUTION: Activation.
+        fc3 = tf.nn.relu(fc3)
+        
+
+    with tf.name_scope("FC4"):
         # SOLUTION: Layer 5: Fully Connected. Input = 84. Output = 10.
+        fc4_W = tf.Variable(tf.truncated_normal(shape=(fcp[2], 43), mean=mu, stddev=sigma))
+        fc4_b = tf.Variable(tf.zeros(43))
+        logits = tf.matmul(fc3, fc4_W) + fc4_b
+
+    return logits
+
+
+def LeNet_o(x,keep_prob, fcp=(120,120,84)):
+    # Arguments used for tf.truncated_normal, randomly defines variables for the weights and biases for each layer
+    mu = 0
+    sigma = 0.1
+
+    # SOLUTION: Layer 1: Convolutional. Input = 32x32x3. Output = 28x28x6.
+
+    variable_summaries(x,"x")
+    with tf.name_scope("CONV1"):
+        conv1_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 1, 6), mean=mu, stddev=sigma))
+        conv1_b = tf.Variable(tf.zeros(6))
+        conv1 = tf.nn.conv2d(x, conv1_W, strides=[1, 1, 1, 1], padding='VALID') + conv1_b
+
+    variable_summaries(conv1,"conv1")
+
+    # SOLUTION: Activation.
+    with tf.name_scope("RELU1"):
+        conv1 = tf.nn.relu(conv1)
+    variable_summaries(conv1,"conv1_relu1")
+
+
+    # SOLUTION: Pooling. Input = 28x28x6. Output = 14x14x6.
+    with tf.name_scope("POOL1"):
+        conv1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+    variable_summaries(conv1,"pool1")
+
+    # SOLUTION: Layer 2: Convolutional. Output = 10x10x16.
+    with tf.name_scope("CONV2"):
+        conv2_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 6, 16), mean=mu, stddev=sigma))
+        conv2_b = tf.Variable(tf.zeros(16))
+        conv2 = tf.nn.conv2d(conv1, conv2_W, strides=[1, 1, 1, 1], padding='VALID') + conv2_b
+
+    # SOLUTION: Activation.
+    with tf.name_scope("RELU2"):
+        conv2 = tf.nn.relu(conv2)
+
+    with tf.name_scope("POOL2"):
+        # SOLUTION: Pooling. Input = 10x10x16. Output = 5x5x16.
+        conv2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+
+    with tf.name_scope("Flatten"):
+        # SOLUTION: Flatten. Input = 5x5x16. Output = 400.
+        fc0 = flatten(conv2)
+
+    with tf.name_scope("FC1"):
+        # SOLUTION: Layer 3: Fully Connected. Input = 400. Output = 120.
+        fc1_W = tf.Variable(tf.truncated_normal(shape=(400, fcp[0]), mean=mu, stddev=sigma))
+        fc1_b = tf.Variable(tf.zeros(fcp[0]))
+        fc1 = tf.matmul(fc0, fc1_W) + fc1_b
+
+    with tf.name_scope("RELU3"):
+        # SOLUTION: Activation.
+        fc1 = tf.nn.relu(fc1)
+
+    with tf.name_scope("DROP_OUT"):
+        fc1 = tf.nn.dropout(fc1, keep_prob=keep_prob)
+
+    with tf.name_scope("FC2"):
+        # SOLUTION: Layer 4: Fully Connected. Input = 120. Output = 84.
+        fc2_W = tf.Variable(tf.truncated_normal(shape=(fcp[0], fcp[1]), mean=mu, stddev=sigma))
+        fc2_b = tf.Variable(tf.zeros(fcp[1]))
+        fc2 = tf.matmul(fc1, fc2_W) + fc2_b
+
+    with tf.name_scope("RELU4"):
+        # SOLUTION: Activation.
+        fc2 = tf.nn.relu(fc2)
+        
+    with tf.name_scope("FC2"):
+        # SOLUTION: Layer 4: Fully Connected. Input = 120. Output = 84.
         fc3_W = tf.Variable(tf.truncated_normal(shape=(fcp[1], 43), mean=mu, stddev=sigma))
         fc3_b = tf.Variable(tf.zeros(43))
         logits = tf.matmul(fc2, fc3_W) + fc3_b
 
+
     return logits
 
-x = tf.placeholder(tf.float32, (None, 32, 32, 3))
+x = tf.placeholder(tf.float32, (None, 32, 32, 1))
 y = tf.placeholder(tf.int32, (None))
 one_hot_y = tf.one_hot(y, 43)
 keep_prob = tf.placeholder(tf.float32, ())
 
 
 
-EPOCHS = 20
-BATCH_SIZE = 128
+EPOCHS = 160
+BATCH_SIZE = 1024
 rate = 0.001
-training_keep_prob = 1
-netpara = (120,84)
+training_keep_prob = 0.5
+
+netpara = (300,180,100)
+#netpara = (120, 84)
+
+logits = LeNet(x,keep_prob, netpara)
+#logits = LeNet_o(x,keep_prob, netpara)
 
 tf.summary.image("x", x,max_outputs=3)
 
-logits = LeNet(x,keep_prob, netpara)
+
 cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits, one_hot_y)
 loss_operation = tf.reduce_mean(cross_entropy)
 optimizer = tf.train.AdamOptimizer(learning_rate = rate)
@@ -161,7 +275,7 @@ def evaluate(X_data, y_data):
     sess = tf.get_default_session()
     for offset in range(0, num_examples, BATCH_SIZE):
         batch_x, batch_y = X_data[offset:offset+BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
-        accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y, keep_prob:training_keep_prob})
+        accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y, keep_prob:1})
         total_accuracy += (accuracy * len(batch_x))
     return total_accuracy / num_examples
 
@@ -182,7 +296,7 @@ with tf.Session() as sess:
         for offset in range(0, num_examples, BATCH_SIZE):
             end = offset + BATCH_SIZE
             batch_x, batch_y = X_train[offset:end], y_train[offset:end]
-            sess.run(training_operation, feed_dict={x: batch_x, y: batch_y, keep_prob:1})
+            sess.run(training_operation, feed_dict={x: batch_x, y: batch_y, keep_prob:training_keep_prob})
 
             if 0: #offset % (BATCH_SIZE*100) == 0.0:
                 summary, Traing_loss = sess.run([merged,loss_operation], feed_dict={x: batch_x, y: batch_y, keep_prob:1})
