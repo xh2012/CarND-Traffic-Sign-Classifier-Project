@@ -184,7 +184,7 @@ Here are five German traffic signs that I found on the web:
 ![alt text][image4] ![alt text][image5] ![alt text][image6] 
 ![alt text][image7] ![alt text][image8]
 
-The first image might be difficult to classify because ...
+The third image might be difficult to classify because the image was not at the center of the crop image, and there were another traffic sign behind it, it may have some difficulty to predict on this image.
 
 ####2. Discuss the model's predictions on these new traffic signs and compare the results to predicting on the test set. Identify where in your code predictions were made. At a minimum, discuss what the predictions were, the accuracy on these new predictions, and compare the accuracy to the accuracy on the test set (OPTIONAL: Discuss the results in more detail as described in the "Stand Out Suggestions" part of the rubric).
 
@@ -204,9 +204,8 @@ The model was able to correctly guess 4 of the 5 traffic signs, which gives an a
 
 ####3. Describe how certain the model is when predicting on each of the five new images by looking at the softmax probabilities for each prediction and identify where in your code softmax probabilities were outputted. Provide the top 5 softmax probabilities for each image along with the sign type of each probability. (OPTIONAL: as described in the "Stand Out Suggestions" part of the rubric, visualizations can also be provided such as bar charts)
 
-The code for making predictions on my final model is located in the 11th cell of the Ipython notebook.
-
 
 ![alt text][image9]
 
 the model seems to be certain at every image it predict.And then it gets wrong in the 3rd image, It mistake the "Roudabout Mandatory" as a "Speed Limit(30km/h)", but "Roudabout Mandatory" is in the 4th place .....
+
