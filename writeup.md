@@ -194,13 +194,13 @@ Here are the results of the prediction:
 | Image			        |     Prediction	        					| 
 |:---------------------:|:---------------------------------------------:| 
 | Speed limit (120km/h) | Speed limit (120km/h)  						| 
-| Double curve     		| Double curve									|
+| Double curve     		| Yield									|
 | Roundabout mandatory	| Speed limit (30km/h)							|
-| Bicycles crossing	    | Bicycles crossing				 				|
+| Bicycles crossing	    | Beware of Ice/Snow				 				|
 | Stop					| Stop      									|
 
 
-The model was able to correctly guess 4 of the 5 traffic signs, which gives an accuracy of 80%. This compares favorably to the accuracy on the test set of 95%
+The model was able to correctly guess 4 of the 5 traffic signs, which gives an accuracy of 60%. This compares favorably to the accuracy on the test set of 95%.
 
 ####3. Describe how certain the model is when predicting on each of the five new images by looking at the softmax probabilities for each prediction and identify where in your code softmax probabilities were outputted. Provide the top 5 softmax probabilities for each image along with the sign type of each probability. (OPTIONAL: as described in the "Stand Out Suggestions" part of the rubric, visualizations can also be provided such as bar charts)
 
